@@ -1,0 +1,7 @@
+sklearn
+matplotlib
+pandas
+speechbrain
+PySoundFile
+tables
+Jinja2

@@ -207,15 +207,20 @@ def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):
     
     return min_dcf, min_c_det_threshold
 
-def calculate_metrics(labels, scores):
-    val_eer_roc, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
-    val_eer_det, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
-    val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
-    return val_eer_roc, val_eer_det, val_min_dcf
+def calculate_metrics(labels, scores, eer_method:str='roc'):
+    # Calculate Equal Error Rate (EER)
+    if (eer_method == 'roc'):
+        val_eer, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
+    else:
+        val_eer, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
 
-def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer_roc, eer_det, min_dcf):
-    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer_roc'] = eer_roc
-    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer_det'] = eer_det
+    # Calculate minimum Detection Cost Function (minDCF)
+    val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
+    
+    return val_eer, val_min_dcf
+
+def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer, min_dcf):
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer'] = eer
     df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_dcf'] = min_dcf
     return
 
@@ -245,14 +250,11 @@ if __name__ == "__main__":
     ]
     cols = [
         'clusters',
-        # 'test_eer_roc',
-        # 'test_eer_det',
+        # 'test_eer',
         # 'test_min_dcf',
-        'easy_eer_roc',
-        'easy_eer_det',
+        'easy_eer',
         'easy_min_dcf',
-        'hard_eer_roc',
-        'hard_eer_det',
+        'hard_eer',
         'hard_min_dcf',
     ]
     data = [[c, *[np.nan]*(len(cols)-1)] for c in clusters]
@@ -308,14 +310,11 @@ if __name__ == "__main__":
     # Prepare DataFrame for CSV file output
     df_metrics.rename(columns={
         'clusters':'Clusters',
-        # 'test_eer_roc':'EER (ROC)',
-        # 'test_eer_det':'EER (DET)',
+        # 'test_eer_roc':'EER',
         # 'test_min_dcf':'minDCF',
-        'easy_eer_roc':'EER (ROC)',
-        'easy_eer_det':'EER (DET)',
+        'easy_eer':'EER',
         'easy_min_dcf':'minDCF',
-        'hard_eer_roc':'EER (ROC)',
-        'hard_eer_det':'EER (DET)',
+        'hard_eer':'EER',
         'hard_min_dcf':'minDCF',
     }, inplace=True)
 

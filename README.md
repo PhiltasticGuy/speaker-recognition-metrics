@@ -14,6 +14,6 @@ Get-Content "data/xvector.txt" | select -First 50 > "data/xvector-sample.txt"
 
 ### Equal Error Rate (EER)
 
-### minDCF (Minimal Detection Cost Function (DCF)
+### minDCF (Minimum Detection Cost Function (DCF)
 
 ### Calibrated Log-Likelihood Ratio (Cllr)

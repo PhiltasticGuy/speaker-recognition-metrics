@@ -2,10 +2,8 @@ import io
 import os
 import re
 import gzip
-from sre_parse import Verbose
 from matplotlib import pyplot as plt
 import pandas as pd
-import scipy
 from scipy import spatial
 from ast import literal_eval
 import numpy as np

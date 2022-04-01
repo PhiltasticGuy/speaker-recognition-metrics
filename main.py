@@ -223,10 +223,14 @@ def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer_roc,
 # [ENTRYPOINTS]
 ##############################################################################
 if __name__ == "__main__":
+    verbose = False
+    trace_eer_plots = False
+
     x_vecs = load_x_vectors(DATA_XVECTOR_RAW, DATA_XVECTOR_RAW.replace('.txt', '.h5'))
     metadata = load_voxceleb_metadata(DATA_VOXCELEB_META)
 
-    # print_clusters(metadata)
+    if (verbose):
+        print_clusters(metadata)
 
     # Create DataFrame for the calculated metrics
     clusters = [
@@ -254,8 +258,6 @@ if __name__ == "__main__":
     data = [[c, *[np.nan]*(len(cols)-1)] for c in clusters]
     df_metrics = pd.DataFrame(data=data, columns=cols)
 
-    verbose = False
-    trace_eer_plots = False
     for prefix, trials_file in datasets:
         print()
         print('> Processing \'{}\' dataset...'.format(trials_file))
@@ -337,18 +339,6 @@ if __name__ == "__main__":
         bold_rows=True,
         float_format="%.5f"
     )
-
-    # Prepare (score, label) pairs
-    # pairs = [
-    #     (is_target_speaker(x_vecs, enrollment, test), 1 if label == 'target' else 0)
-    #     for enrollment, test, label
-    #     in trials
-    # ]
-    # # pairs = pairs.sort(key=lambda pair: pair[0])
-
-    # Calculate Equal Error Rate (EER)
-    # labels = [label for _, label in pairs] 
-    # scores = [score for score, _ in pairs]
 
     # # Calculate metrics using SpeechBrain librairies
     # import torch, torchaudio

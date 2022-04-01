@@ -207,6 +207,18 @@ def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):
     
     return min_dcf, min_c_det_threshold
 
+def calculate_metrics(labels, scores):
+    val_eer_roc, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
+    val_eer_det, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
+    val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
+    return val_eer_roc, val_eer_det, val_min_dcf
+
+def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer_roc, eer_det, min_dcf):
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer_roc'] = eer_roc
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer_det'] = eer_det
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_dcf'] = min_dcf
+    return
+
 ##############################################################################
 # [ENTRYPOINTS]
 ##############################################################################
@@ -260,36 +272,30 @@ if __name__ == "__main__":
         print('> Calculate metrics for \'{}\' cluster...'.format(CLUSTER_ALL_SPEAKERS))
         labels = df['label'].to_list()
         scores = df['score'].to_list()
-        val_eer_roc, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
-        val_eer_det, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
-        val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
-        df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_eer_roc'] = val_eer_roc
-        df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_eer_det'] = val_eer_det
-        df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_min_dcf'] = val_min_dcf
+        update_metrics(
+            df_metrics, CLUSTER_ALL_SPEAKERS, prefix,
+            *calculate_metrics(labels, scores)
+        )
         
         # Gender
         for gender in df.gender.sort_values().unique():
             print('> Calculate metrics for \'{}\' cluster...'.format(gender))
             labels = df[df.gender.isin([gender])]['label'].to_list()
             scores = df[df.gender.isin([gender])]['score'].to_list()
-            val_eer_roc, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
-            val_eer_det, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
-            val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
-            df_metrics.loc[df_metrics.clusters.isin([gender]), f'{prefix}_eer_roc'] = val_eer_roc
-            df_metrics.loc[df_metrics.clusters.isin([gender]), f'{prefix}_eer_det'] = val_eer_det
-            df_metrics.loc[df_metrics.clusters.isin([gender]), f'{prefix}_min_dcf'] = val_min_dcf
+            update_metrics(
+                df_metrics, gender, prefix,
+                *calculate_metrics(labels, scores)
+            )
 
         # Nationality
         for country in df.nationality.sort_values().unique():
             print('> Calculate metrics for \'{}\' cluster...'.format(country))
             labels = df[df.nationality.isin([country])]['label'].to_list()
             scores = df[df.nationality.isin([country])]['score'].to_list()
-            val_eer_roc, fpr, fnr, thresholds = get_eer(labels, scores, method='roc', display=trace_eer_plots)
-            val_eer_det, fpr, fnr, thresholds = get_eer(labels, scores, method='det', display=trace_eer_plots)
-            val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
-            df_metrics.loc[df_metrics.clusters.isin([country]), f'{prefix}_eer_roc'] = val_eer_roc
-            df_metrics.loc[df_metrics.clusters.isin([country]), f'{prefix}_eer_det'] = val_eer_det
-            df_metrics.loc[df_metrics.clusters.isin([country]), f'{prefix}_min_dcf'] = val_min_dcf
+            update_metrics(
+                df_metrics, country, prefix,
+                *calculate_metrics(labels, scores)
+            )
 
     if (verbose):
         print()

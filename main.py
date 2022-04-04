@@ -105,6 +105,13 @@ def load_utterances(in_file:str):
         # Split on spaces to extract data
         return dict(line.strip().split(' ') for line in fr.readlines())
 
+def get_utterance_cluster(length:int, utterance_clusters):
+    for cluster, threshold in utterance_clusters:
+        if (length <= threshold):
+            return cluster
+    
+    raise Exception('ERROR')
+
 def load_processed_trials(trials_file:str, metadata:pd.DataFrame, utterance_clusters, x_vecs:dict):
     out_file = trials_file.replace('.trials', '.h5')
     trials = load_trials(trials_file)
@@ -144,14 +151,14 @@ def load_processed_trials(trials_file:str, metadata:pd.DataFrame, utterance_clus
         print('> Load VoxCeleb utterance metadata from raw file ({})...'.format(DATA_VOXCELEB_UTTERANCES))
         utterances = load_utterances(DATA_VOXCELEB_UTTERANCES)
         df['enrollment_length'] = df.apply(
-            lambda row: get_group(
+            lambda row: get_utterance_cluster(
                 int(utterances[row['enrollment']]),
                 utterance_clusters,
             ), 
             axis=1
         )
         df['test_length'] = df.apply(
-            lambda row: get_group(
+            lambda row: get_utterance_cluster(
                 int(utterances[row['test']]), 
                 utterance_clusters,
             ), 
@@ -263,13 +270,6 @@ def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer, min
     df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_dcf'] = min_dcf
     return
 
-def get_group(length:int, utterance_clusters):
-    for cluster, threshold in utterance_clusters:
-        if (length <= threshold):
-            return cluster
-    
-    raise Exception('ERROR')
-
 ##############################################################################
 # [ENTRYPOINTS]
 ##############################################################################
@@ -299,20 +299,6 @@ if __name__ == "__main__":
         print(utterances.describe().transpose())
         print()
         print(utterances.groupby(pd.qcut(utterances.length, 4)).size().reset_index(name='count'))
-
-    # Replace utterance lengths with the corresponding cluster name
-    # utterances['length'] = utterances.apply(
-    #     lambda row: get_group(row.length, utterance_clusters, utterance_thresholds), 
-    #     axis=1
-    # )
-
-    # df = load_processed_trials(
-    #     trials_file=DATA_TRIALS_O, 
-    #     metadata=metadata, 
-    #     utterance_clusters=utterance_clusters, 
-    #     utterance_thresholds=utterance_thresholds, 
-    #     x_vecs=x_vecs
-    # )
 
     # Create DataFrame for the calculated metrics
     clusters = [

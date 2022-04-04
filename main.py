@@ -10,8 +10,10 @@ import numpy as np
 from sklearn import metrics
 from sklearn.metrics import RocCurveDisplay
 from sklearn.metrics import DetCurveDisplay
+from tqdm import tqdm
 
 DATA_VOXCELEB_META = "data/vox1_meta.csv"
+DATA_VOXCELEB_UTTERANCES = "data/utt2num_frames"
 DATA_TRIALS_O = "data/voxceleb1_o_cleaned.trials"
 DATA_TRIALS_EASY = "data/voxceleb1_e_cleaned.trials"
 DATA_TRIALS_HARD = "data/voxceleb1_h_cleaned.trials"
@@ -22,7 +24,7 @@ DATA_XVECTOR_SAMPLE_COMPRESSED = "data/xvector-sample.h5"
 
 CLUSTER_ALL_SPEAKERS = 'All Speakers'
 
-NA_LATEX_OUTPUT = '-'
+NA_LATEX_OUTPUT = '\\textemdash'
 
 def load_x_vectors(in_file:str, out_file:str):
     # Open cleaned data if it already exists
@@ -41,7 +43,7 @@ def load_x_vectors(in_file:str, out_file:str):
         with io.open(in_file, 'r', encoding='utf-8') as fr:
             for line in fr.readlines():
                 # Remove trailing newline characters and extract id + values
-                id, values = line.replace('\n', '').split('  ')
+                id, values = line.strip().split('  ')
 
                 # Interpret values as numpy array
                 values = re.sub(r'(?u)(?<=[\d])\ (?=[\d\-]+)', ',', values)
@@ -57,7 +59,7 @@ def load_x_vectors(in_file:str, out_file:str):
 
     return xvecs
 
-def load_voxceleb_metadata(in_file:str):
+def load_metadata_clusters(in_file:str):
     print('> Load VoxCeleb metadata from raw file ({})...'.format(in_file))
 
     df = pd.read_csv(in_file, sep='\t', encoding='utf-8')
@@ -74,13 +76,36 @@ def load_voxceleb_metadata(in_file:str):
 
     return df
 
+def load_utterance_clusters(in_file:str):
+    print('> Load VoxCeleb utterance metadata from raw file ({})...'.format(in_file))
+
+    df = pd.read_csv(in_file, delim_whitespace=True, encoding='utf-8', names=['utterance_id', 'length'])
+
+    return df
+
 def load_trials(in_file:str):
     # Read raw data, line by line
     with io.open(in_file, 'r', encoding='utf-8') as fr:
         # Split on spaces to extract data
-        return [line.replace('\n', '').split(' ') for line in fr.readlines()]
+        return [line.strip().split(' ') for line in fr.readlines()]
 
-def load_processed_trials(trials_file:str, metadata:pd.DataFrame, x_vecs:dict):
+def get_speaker(line:str):
+    speaker_id, _, gender, nationality, _ = line.strip().split('\t')
+    return (speaker_id, ('Male' if gender == 'm' else 'Female', nationality))
+
+def load_speakers(in_file:str):
+    # Read raw data, line by line
+    with io.open(in_file, 'r', encoding='utf-8') as fr:
+        # Split on spaces to extract data
+        return dict(get_speaker(line) for line in fr.readlines())
+
+def load_utterances(in_file:str):
+    # Read raw data, line by line
+    with io.open(in_file, 'r', encoding='utf-8') as fr:
+        # Split on spaces to extract data
+        return dict(line.strip().split(' ') for line in fr.readlines())
+
+def load_processed_trials(trials_file:str, metadata:pd.DataFrame, utterance_clusters, x_vecs:dict):
     out_file = trials_file.replace('.trials', '.h5')
     trials = load_trials(trials_file)
 
@@ -97,8 +122,6 @@ def load_processed_trials(trials_file:str, metadata:pd.DataFrame, x_vecs:dict):
             'enrollment' : [],
             'test' : [],
             'label' : [],
-            'gender' : [],
-            'nationality' : [],
             'score' : [],
         }
         for enrollment, test, label in trials:
@@ -107,19 +130,33 @@ def load_processed_trials(trials_file:str, metadata:pd.DataFrame, x_vecs:dict):
             trials_clean['enrollment'].append(enrollment)
             trials_clean['test'].append(test)
             trials_clean['label'].append(1 if label == 'target' else 0)
-            trials_clean['gender'].append(None)
-            trials_clean['nationality'].append(None)
             trials_clean['score'].append(is_target_speaker(x_vecs, enrollment, test))
 
         df = pd.DataFrame.from_dict(trials_clean)
         
-        for index, data in metadata.iterrows():
-            # Remove trailing newline characters and extract id + values
-            speaker_id, _, gender, nationality, _ = data
+        # Load VoxCeleb metadata for speakers
+        print('> Load VoxCeleb metadata from raw file ({})...'.format(DATA_VOXCELEB_META))
+        speakers = load_speakers(DATA_VOXCELEB_META)
+        df['gender'] = df.apply(lambda row: speakers[row['speaker_id']][0], axis=1)
+        df['nationality'] = df.apply(lambda row: speakers[row['speaker_id']][1], axis=1)
 
-            # Insert values into the dictionary
-            df.loc[df['speaker_id'].isin([speaker_id]), 'gender'] = gender
-            df.loc[df['speaker_id'].isin([speaker_id]), 'nationality'] = nationality
+        # Load utterance metadata
+        print('> Load VoxCeleb utterance metadata from raw file ({})...'.format(DATA_VOXCELEB_UTTERANCES))
+        utterances = load_utterances(DATA_VOXCELEB_UTTERANCES)
+        df['enrollment_length'] = df.apply(
+            lambda row: get_group(
+                int(utterances[row['enrollment']]),
+                utterance_clusters,
+            ), 
+            axis=1
+        )
+        df['test_length'] = df.apply(
+            lambda row: get_group(
+                int(utterances[row['test']]), 
+                utterance_clusters,
+            ), 
+            axis=1
+        )
 
         print('> Save cleaned trials to compressed file ({})...'.format(out_file))
         df.to_csv(out_file, sep=',', index=False, encoding='utf-8')
@@ -226,6 +263,13 @@ def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer, min
     df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_dcf'] = min_dcf
     return
 
+def get_group(length:int, utterance_clusters):
+    for cluster, threshold in utterance_clusters:
+        if (length <= threshold):
+            return cluster
+    
+    raise Exception('ERROR')
+
 ##############################################################################
 # [ENTRYPOINTS]
 ##############################################################################
@@ -234,16 +278,48 @@ if __name__ == "__main__":
     trace_eer_plots = False
 
     x_vecs = load_x_vectors(DATA_XVECTOR_RAW, DATA_XVECTOR_RAW.replace('.txt', '.h5'))
-    metadata = load_voxceleb_metadata(DATA_VOXCELEB_META)
+    metadata = load_metadata_clusters(DATA_VOXCELEB_META)
+    utterances = load_utterance_clusters(DATA_VOXCELEB_UTTERANCES)
+    utterance_clusters = \
+        utterances.groupby(
+            pd.qcut(utterances.length, 4)
+        ).size().reset_index(name='count').length.unique()
+    utterance_thresholds = [
+        utterances.length.quantile(0.25), 
+        utterances.length.quantile(0.50), 
+        utterances.length.quantile(0.75), 
+        utterances.length.max()
+    ]
 
     if (verbose):
         print_clusters(metadata)
+
+        print(utterances.info())
+        print()
+        print(utterances.describe().transpose())
+        print()
+        print(utterances.groupby(pd.qcut(utterances.length, 4)).size().reset_index(name='count'))
+
+    # Replace utterance lengths with the corresponding cluster name
+    # utterances['length'] = utterances.apply(
+    #     lambda row: get_group(row.length, utterance_clusters, utterance_thresholds), 
+    #     axis=1
+    # )
+
+    # df = load_processed_trials(
+    #     trials_file=DATA_TRIALS_O, 
+    #     metadata=metadata, 
+    #     utterance_clusters=utterance_clusters, 
+    #     utterance_thresholds=utterance_thresholds, 
+    #     x_vecs=x_vecs
+    # )
 
     # Create DataFrame for the calculated metrics
     clusters = [
         CLUSTER_ALL_SPEAKERS,
         *metadata.gender.sort_values().unique(),
         *metadata.nationality.sort_values().unique(),
+        *utterance_clusters,
     ]
     datasets = [
         # ('test', DATA_TRIALS_O,
@@ -271,7 +347,12 @@ if __name__ == "__main__":
         print('> Processing \'{}\' dataset...'.format(trials_file))
 
         # Load data and metadata from files
-        df = load_processed_trials(trials_file=trials_file, metadata=metadata, x_vecs=x_vecs)
+        df = load_processed_trials(
+            trials_file=trials_file, 
+            metadata=metadata, 
+            utterance_clusters=list(zip(utterance_clusters, utterance_thresholds)), 
+            x_vecs=x_vecs
+        )
         
         if (verbose):
             print()
@@ -316,6 +397,19 @@ if __name__ == "__main__":
                 *calculate_metrics(labels, scores)
             )
 
+        # Lengths
+        for length in utterance_clusters:
+            print('> Calculate metrics for \'{}\' cluster...'.format(length))
+            labels = df[df.test_length.isin([length])]['label'].to_list()
+            scores = df[df.test_length.isin([length])]['score'].to_list()
+
+            df_metrics.loc[df_metrics.clusters.isin([length]), f'{prefix}_count'] = len(scores)
+
+            update_metrics(
+                df_metrics, length, prefix,
+                *calculate_metrics(labels, scores)
+            )
+
     if (verbose):
         print()
         print(df_metrics.info())
@@ -336,11 +430,11 @@ if __name__ == "__main__":
         'easy_count':'Trials',
         'easy_eer':'EER',
         'easy_min_dcf':'minDCF',
-        'easy_cllr':'$Cllr$',
+        'easy_cllr':'$C_{llr}$',
         'hard_count':'Trials',
         'hard_eer':'EER',
         'hard_min_dcf':'minDCF',
-        'hard_cllr':'$Cllr$',
+        'hard_cllr':'$C_{llr}$',
     }, inplace=True)
 
     # Save the DataFrame to CSV file
@@ -357,6 +451,7 @@ if __name__ == "__main__":
     df_metrics.to_latex(
         'data/metrics_per_cluster.latex', 
         index=False,
+        escape=False,
         label='tab:CompareMetrics',
         na_rep=NA_LATEX_OUTPUT,
         caption='Comparison of speaker recognition metrics per dataset and cluster.',

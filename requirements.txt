@@ -5,3 +5,4 @@ speechbrain
 PySoundFile
 tables
 Jinja2
+tqdm

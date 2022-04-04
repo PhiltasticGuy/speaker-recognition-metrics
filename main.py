@@ -22,6 +22,8 @@ DATA_XVECTOR_SAMPLE_COMPRESSED = "data/xvector-sample.h5"
 
 CLUSTER_ALL_SPEAKERS = 'All Speakers'
 
+NA_LATEX_OUTPUT = '-'
+
 def load_x_vectors(in_file:str, out_file:str):
     # Open cleaned data if it already exists
     if(os.path.isfile(out_file)):
@@ -252,10 +254,14 @@ if __name__ == "__main__":
         'clusters',
         # 'test_eer',
         # 'test_min_dcf',
+        'easy_count',
         'easy_eer',
         'easy_min_dcf',
+        'easy_cllr',
+        'hard_count',
         'hard_eer',
         'hard_min_dcf',
+        'hard_cllr',
     ]
     data = [[c, *[np.nan]*(len(cols)-1)] for c in clusters]
     df_metrics = pd.DataFrame(data=data, columns=cols)
@@ -276,6 +282,9 @@ if __name__ == "__main__":
         print('> Calculate metrics for \'{}\' cluster...'.format(CLUSTER_ALL_SPEAKERS))
         labels = df['label'].to_list()
         scores = df['score'].to_list()
+
+        df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_count'] = len(scores)
+
         update_metrics(
             df_metrics, CLUSTER_ALL_SPEAKERS, prefix,
             *calculate_metrics(labels, scores)
@@ -286,6 +295,9 @@ if __name__ == "__main__":
             print('> Calculate metrics for \'{}\' cluster...'.format(gender))
             labels = df[df.gender.isin([gender])]['label'].to_list()
             scores = df[df.gender.isin([gender])]['score'].to_list()
+
+            df_metrics.loc[df_metrics.clusters.isin([gender]), f'{prefix}_count'] = len(scores)
+
             update_metrics(
                 df_metrics, gender, prefix,
                 *calculate_metrics(labels, scores)
@@ -296,6 +308,9 @@ if __name__ == "__main__":
             print('> Calculate metrics for \'{}\' cluster...'.format(country))
             labels = df[df.nationality.isin([country])]['label'].to_list()
             scores = df[df.nationality.isin([country])]['score'].to_list()
+
+            df_metrics.loc[df_metrics.clusters.isin([country]), f'{prefix}_count'] = len(scores)
+
             update_metrics(
                 df_metrics, country, prefix,
                 *calculate_metrics(labels, scores)
@@ -308,14 +323,24 @@ if __name__ == "__main__":
         print(df_metrics.head(25))
 
     # Prepare DataFrame for CSV file output
+    df_metrics['easy_count'] = df_metrics['easy_count'].map(
+        lambda x: '{:.0f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['hard_count'] = df_metrics['hard_count'].map(
+        lambda x: '{:.0f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
     df_metrics.rename(columns={
         'clusters':'Clusters',
         # 'test_eer_roc':'EER',
         # 'test_min_dcf':'minDCF',
+        'easy_count':'Trials',
         'easy_eer':'EER',
         'easy_min_dcf':'minDCF',
+        'easy_cllr':'$Cllr$',
+        'hard_count':'Trials',
         'hard_eer':'EER',
         'hard_min_dcf':'minDCF',
+        'hard_cllr':'$Cllr$',
     }, inplace=True)
 
     # Save the DataFrame to CSV file
@@ -333,7 +358,7 @@ if __name__ == "__main__":
         'data/metrics_per_cluster.latex', 
         index=False,
         label='tab:CompareMetrics',
-        na_rep='-',
+        na_rep=NA_LATEX_OUTPUT,
         caption='Comparison of speaker recognition metrics per dataset and cluster.',
         bold_rows=True,
         float_format="%.5f"

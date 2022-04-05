@@ -46,6 +46,12 @@ def print_roc_det_curves(labels, scores, method:str='roc'):
     plt.close()
 
 # SOURCE: https://github.com/clovaai/voxceleb_trainer/blob/master/tuneThreshold.py
+#    @inproceedings{chung2020in,
+#        title={In defence of metric learning for speaker recognition},
+#        author={Chung, Joon Son and Huh, Jaesung and Mun, Seongkyu and Lee, Minjae and Heo, Hee Soo and Choe, Soyeon and Ham, Chiheon and Jung, Sunghwan and Lee, Bong-Jin and Han, Icksang},
+#        booktitle={Interspeech},
+#        year={2020}
+#    }
 # Computes the minimum of the detection cost function.  The comments refer to
 # equations in Section 3 of the NIST 2016 Speaker Recognition Evaluation Plan.
 def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):    
@@ -66,11 +72,11 @@ def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):
     return min_dcf, min_c_det_threshold
 
 # SOURCE: https://gitlab.eurecom.fr/nautsch/cllr
+#    Niko Brümmer, Luciana Ferrer and Albert Swart, 
+#    "Out of a hundred trials, how many errors does your speaker verifier make?", 
+#    2011, 
+#    https://arxiv.org/abs/2104.00732
 # SOURCE: https://github.com/bsxfan/PYLLR/blob/main/pyllr/quick_eval.py
-# Niko Brümmer, Luciana Ferrer and Albert Swart, 
-# "Out of a hundred trials, how many errors does your speaker verifier make?", 
-# 2011, 
-# https://arxiv.org/abs/2104.00732
 def get_cllr(scores, labels):    
     eer, Cllr, minCllr = scoreslabels_2_eer_cllr_mincllr(np.asarray(scores), np.asarray(labels))
     return Cllr, minCllr

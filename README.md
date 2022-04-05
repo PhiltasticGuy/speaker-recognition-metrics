@@ -17,3 +17,8 @@ Get-Content "data/xvector.txt" | select -First 50 > "data/xvector-sample.txt"
 ### minDCF (Minimum Detection Cost Function (DCF)
 
 ### Calibrated Log-Likelihood Ratio (Cllr)
+
+## References
+
+- <https://github.com/clovaai/voxceleb_trainer>
+- <https://github.com/bsxfan/PYLLR>

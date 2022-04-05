@@ -409,6 +409,18 @@ if __name__ == "__main__":
     df_metrics['hard_count'] = df_metrics['hard_count'].map(
         lambda x: '{:.0f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
     ) 
+    df_metrics['easy_eer'] = df_metrics['easy_eer'].map(
+        lambda x: '{:.2f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['hard_eer'] = df_metrics['hard_eer'].map(
+        lambda x: '{:.2f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['easy_min_dcf'] = df_metrics['easy_min_dcf'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['hard_min_dcf'] = df_metrics['hard_min_dcf'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
     df_metrics.rename(columns={
         'clusters':'Clusters',
         # 'test_eer_roc':'EER',

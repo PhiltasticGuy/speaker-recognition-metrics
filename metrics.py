@@ -64,6 +64,26 @@ def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):
     
     return min_dcf, min_c_det_threshold
 
+def process_cluster_subsets(
+    df_data:pd.DataFrame, 
+    df_metrics:pd.DataFrame, 
+    dataset_prefix:str, 
+    cluster_subsets, 
+    groupby_column:str, 
+    trace_eer_plots=False
+):
+    for cluster in cluster_subsets:
+        print('> Calculate metrics for \'{}\' cluster...'.format(cluster))
+        labels = df_data[df_data[groupby_column].isin([cluster])]['label'].to_list()
+        scores = df_data[df_data[groupby_column].isin([cluster])]['score'].to_list()
+
+        df_metrics.loc[df_metrics.clusters.isin([cluster]), f'{dataset_prefix}_count'] = len(scores)
+
+        update_metrics(
+            df_metrics, cluster, dataset_prefix,
+            *calculate_metrics(labels, scores, trace_eer_plots=trace_eer_plots)
+        )
+
 def calculate_metrics(labels, scores, eer_method:str='roc', trace_eer_plots=False):
     # Calculate Equal Error Rate (EER)
     if (eer_method == 'roc'):

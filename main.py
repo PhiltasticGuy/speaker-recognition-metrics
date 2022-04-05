@@ -59,10 +59,12 @@ if __name__ == "__main__":
         'easy_eer',
         'easy_min_dcf',
         'easy_cllr',
+        'easy_min_cllr',
         'hard_count',
         'hard_eer',
         'hard_min_dcf',
         'hard_cllr',
+        'hard_min_cllr',
     ]
     data = [[c, *[np.nan]*(len(cols)-1)] for c in clusters]
     df_metrics = pd.DataFrame(data=data, columns=cols)
@@ -146,6 +148,18 @@ if __name__ == "__main__":
     df_metrics['hard_min_dcf'] = df_metrics['hard_min_dcf'].map(
         lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
     ) 
+    df_metrics['easy_cllr'] = df_metrics['easy_cllr'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['hard_cllr'] = df_metrics['hard_cllr'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['easy_min_cllr'] = df_metrics['easy_min_cllr'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
+    df_metrics['hard_min_cllr'] = df_metrics['hard_min_cllr'].map(
+        lambda x: '{:.3f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+    ) 
     df_metrics.rename(columns={
         'clusters':'Clusters',
         # 'test_eer_roc':'EER',
@@ -154,10 +168,12 @@ if __name__ == "__main__":
         'easy_eer':'EER',
         'easy_min_dcf':'minDCF',
         'easy_cllr':'$C_{llr}$',
+        'easy_min_cllr':'$minC_{llr}$',
         'hard_count':'Trials',
         'hard_eer':'EER',
         'hard_min_dcf':'minDCF',
         'hard_cllr':'$C_{llr}$',
+        'hard_min_cllr':'$minC_{llr}$',
     }, inplace=True)
 
     # Save the DataFrame to CSV file

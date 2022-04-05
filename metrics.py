@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from sklearn import metrics
 from sklearn.metrics import RocCurveDisplay
 from sklearn.metrics import DetCurveDisplay
+from pyllr.quick_eval import scoreslabels_2_eer_cllr_mincllr
 
 def get_eer(labels, scores, method:str='roc', display:bool=False):
     if method == 'roc':
@@ -44,7 +45,7 @@ def print_roc_det_curves(labels, scores, method:str='roc'):
     plt.savefig('plots/{}_curve.png'.format(method), bbox_inches='tight')
     plt.close()
 
-# SOURCE: https://github.com/clovaai/voxceleb_trainer
+# SOURCE: https://github.com/clovaai/voxceleb_trainer/blob/master/tuneThreshold.py
 # Computes the minimum of the detection cost function.  The comments refer to
 # equations in Section 3 of the NIST 2016 Speaker Recognition Evaluation Plan.
 def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):    
@@ -63,6 +64,16 @@ def get_min_dcf(fnrs, fprs, thresholds, p_target=0.05, c_miss=1, c_fa=1):
     min_dcf = min_c_det / c_def
     
     return min_dcf, min_c_det_threshold
+
+# SOURCE: https://gitlab.eurecom.fr/nautsch/cllr
+# SOURCE: https://github.com/bsxfan/PYLLR/blob/main/pyllr/quick_eval.py
+# Niko Brümmer, Luciana Ferrer and Albert Swart, 
+# "Out of a hundred trials, how many errors does your speaker verifier make?", 
+# 2011, 
+# https://arxiv.org/abs/2104.00732
+def get_cllr(scores, labels):    
+    eer, Cllr, minCllr = scoreslabels_2_eer_cllr_mincllr(np.asarray(scores), np.asarray(labels))
+    return Cllr, minCllr
 
 def process_cluster_subsets(
     df_data:pd.DataFrame, 
@@ -93,10 +104,15 @@ def calculate_metrics(labels, scores, eer_method:str='roc', trace_eer_plots=Fals
 
     # Calculate minimum Detection Cost Function (minDCF)
     val_min_dcf, thresholds = get_min_dcf(fpr, fnr, thresholds)
-    
-    return val_eer, val_min_dcf
 
-def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer, min_dcf):
+    # Calculate Calibrated Log Likelyhood Ratio (Cllr)
+    val_cllr, val_min_cllr = get_cllr(scores, labels)
+
+    return val_eer, val_min_dcf, val_cllr, val_min_cllr
+
+def update_metrics(df:pd.DataFrame, cluster_id:str, dataset_prefix:str, eer, min_dcf, cllr, min_cllr):
     df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_eer'] = eer
     df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_dcf'] = min_dcf
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_cllr'] = cllr
+    df.loc[df.clusters.isin([cluster_id]), f'{dataset_prefix}_min_cllr'] = min_cllr
     return

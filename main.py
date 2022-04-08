@@ -23,6 +23,7 @@ def print_clusters(df:pd.DataFrame):
 if __name__ == "__main__":
     verbose = False
     trace_eer_plots = False
+    include_target_ratio = False
 
     # Load datasets
     x_vecs = ds.load_x_vectors(ds.DATA_XVECTOR_RAW)
@@ -90,7 +91,15 @@ if __name__ == "__main__":
         labels = df['label'].to_list()
         scores = df['score'].to_list()
 
-        df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_count'] = len(scores)
+        
+        if (include_target_ratio):
+            targets = df.loc[(df['label'] == 1), 'speaker_id'].count()
+            df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_count'] = df_metrics.apply(
+                lambda row: '{:.0f} \hfill(\SI{{{}}}{{\percent}})'.format(len(scores), targets/len(scores)*100), 
+                axis=1
+            )
+        else:
+            df_metrics.loc[df_metrics.clusters.isin([CLUSTER_ALL_SPEAKERS]), f'{prefix}_count'] = len(scores)
 
         metrics.update_metrics(
             df_metrics, CLUSTER_ALL_SPEAKERS, prefix,
@@ -131,11 +140,13 @@ if __name__ == "__main__":
 
     # Prepare DataFrame for CSV file output
     df_metrics['easy_count'] = df_metrics['easy_count'].map(
-        lambda x: '{:.0f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+        lambda x: x if not pd.isna(x) else NA_LATEX_OUTPUT
     ) 
     df_metrics['hard_count'] = df_metrics['hard_count'].map(
-        lambda x: '{:.0f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
+        lambda x: x if not pd.isna(x) else NA_LATEX_OUTPUT
     ) 
+    df_metrics['easy_count'] = df_metrics['easy_count'].astype(str)
+    df_metrics['hard_count'] = df_metrics['hard_count'].astype(str)
     df_metrics['easy_eer'] = df_metrics['easy_eer'].map(
         lambda x: '{:.2f}'.format(x) if not pd.isna(x) else NA_LATEX_OUTPUT
     ) 

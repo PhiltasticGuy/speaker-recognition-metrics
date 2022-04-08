@@ -87,14 +87,22 @@ def process_cluster_subsets(
     dataset_prefix:str, 
     cluster_subsets, 
     groupby_column:str, 
-    trace_eer_plots=False
+    trace_eer_plots=False,
+    include_target_ratio=False,
 ):
     for cluster in cluster_subsets:
         print('> Calculate metrics for \'{}\' cluster...'.format(cluster))
         labels = df_data[df_data[groupby_column].isin([cluster])]['label'].to_list()
         scores = df_data[df_data[groupby_column].isin([cluster])]['score'].to_list()
 
-        df_metrics.loc[df_metrics.clusters.isin([cluster]), f'{dataset_prefix}_count'] = len(scores)
+        if (include_target_ratio):
+            targets = df_data.loc[df_data[groupby_column].isin([cluster]) & (df_data['label'] == 1), 'speaker_id'].count()
+            df_metrics.loc[df_metrics.clusters.isin([cluster]), f'{dataset_prefix}_count'] = df_metrics.apply(
+                lambda row: '{:.0f} \hfill(\SI{{{}}}{{\percent}})'.format(len(scores), targets/len(scores)*100), 
+                axis=1
+            )
+        else:
+            df_metrics.loc[df_metrics.clusters.isin([cluster]), f'{dataset_prefix}_count'] = len(scores)
 
         update_metrics(
             df_metrics, cluster, dataset_prefix,
